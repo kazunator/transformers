@@ -735,7 +735,6 @@ class LlamaIntFlashAttention(LlamaAttention):
             value_states_int8,
             q_scale,
             k_scale,
-            v_scale,
             causal,
             sm_scale
         )
