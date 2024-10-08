@@ -485,7 +485,23 @@ class LlamaMLP(nn.Module):
         self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=config.mlp_bias)
         self.act_fn = ACT2FN[config.hidden_act]
 
+        # Convert weights to float16
+        self.gate_proj.weight = nn.Parameter(self.gate_proj.weight.half())
+        self.up_proj.weight = nn.Parameter(self.up_proj.weight.half())
+        self.down_proj.weight = nn.Parameter(self.down_proj.weight.half())
+
+        # Convert biases to float16 if they exist
+        if self.gate_proj.bias is not None:
+            self.gate_proj.bias = nn.Parameter(self.gate_proj.bias.half())
+        if self.up_proj.bias is not None:
+            self.up_proj.bias = nn.Parameter(self.up_proj.bias.half())
+        if self.down_proj.bias is not None:
+            self.down_proj.bias = nn.Parameter(self.down_proj.bias.half())
+
     def forward(self, x):
+        # Convert input to float16
+        x = x.half()
+
         if self.config.pretraining_tp > 1:
             slice = self.intermediate_size // self.config.pretraining_tp
             gate_proj_slices = self.gate_proj.weight.split(slice, dim=0)
@@ -493,13 +509,15 @@ class LlamaMLP(nn.Module):
             down_proj_slices = self.down_proj.weight.split(slice, dim=1)
 
             gate_proj = torch.cat(
-                [F.linear(x, gate_proj_slices[i]) for i in range(self.config.pretraining_tp)], dim=-1
+                [F.linear(x, gate_proj_slices[i].half()) for i in range(self.config.pretraining_tp)], dim=-1
             )
-            up_proj = torch.cat([F.linear(x, up_proj_slices[i]) for i in range(self.config.pretraining_tp)], dim=-1)
+            up_proj = torch.cat(
+                [F.linear(x, up_proj_slices[i].half()) for i in range(self.config.pretraining_tp)], dim=-1
+            )
 
             intermediate_states = (self.act_fn(gate_proj) * up_proj).split(slice, dim=2)
             down_proj = [
-                F.linear(intermediate_states[i], down_proj_slices[i]) for i in range(self.config.pretraining_tp)
+                F.linear(intermediate_states[i], down_proj_slices[i].half()) for i in range(self.config.pretraining_tp)
             ]
             down_proj = sum(down_proj)
         else:
