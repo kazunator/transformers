@@ -27,7 +27,7 @@ from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache
+from ...cache_utils import Cache, DynamicCache, StaticCache, QuantizedCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import _flash_attention_forward
@@ -744,13 +744,17 @@ class LlamaIntFlashAttention(LlamaAttention):
 
         # Final projection
         attn_output = self.o_proj(attn_output)
+        v_scale = value_states.abs().amax(dim=-1, keepdim=True) / 127
+        v_scale = torch.clamp(v_scale, min=1e-6)
+        value_states_int8 = (value_states / v_scale).round().to(torch.int8)
+        v_scale = v_scale.squeeze(-1).to(torch.float16)
 
         # Update the KV cache with quantized keys and values
         if use_cache and past_key_value is not None:
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             # Update cache with quantized keys and scales
-            past_key_value.update_quantized(
-                key_states_int8, k_scale, value_states.to(torch.float16), self.layer_idx, cache_kwargs
+            past_key_value.update(
+                key_states_int8, k_scale, value_states_int8, v_scale, self.layer_idx, cache_kwargs
             )
 
         return attn_output, None, past_key_value
