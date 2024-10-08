@@ -10,55 +10,60 @@ jobs:
     name: "SSH"
     runs-on: ubuntu-22.04
     steps:
-#      - name: Get team members
-#        shell: bash
-#        run: |
-#          curl -o "team_members.txt" -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.ACCESS_TEAM_INFO_TOKEN }}" https://api.github.com/orgs/huggingface/teams/transformers/members
-#
+      - name: Get team members
+        shell: bash
+        run: |
+          curl -o "team_members.json" -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.ACCESS_TEAM_INFO_TOKEN }}" https://api.github.com/orgs/huggingface/teams/transformers/members
+
 #      - name: Check team members
 #        shell: bash
 #        run: |
 #          cat team_members.txt
 
-      - name: Check
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          repos/${{ github.repository }}/actions/secrets
-
-      - uses: actions/checkout@v4
-
-      - name: Store Slack infos 4
+      - name: Check team members 2
         shell: bash
         run: |
-          {
-            echo 'REPORT_TEXT<<EOF'
-            KV='${{ toJSON(secrets) }}' python utils/process.py
-            echo EOF
-          } >> "$GITHUB_ENV"
-
-      - name: Send SSH informations to Slack channel 2
-        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001
-        with:
-          # Slack channel id, channel name, or user id to post message.
-          # See also: https://api.slack.com/methods/chat.postMessage#channels
-          channel-id: '#transformers-ci-feedback-tests'
-          # For posting a rich message using Block Kit
-          payload: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "${{ env.REPORT_TEXT }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_CIFEEDBACK_BOT_TOKEN }}
+          echo '$(python -c "import json; with open('team_members.json') as fp: data = json.load(fp); fp.close(); print(3)")'
+#
+#      - name: Check
+#        shell: bash
+#        env:
+#          GH_TOKEN: ${{ github.token }}
+#        run: |
+#          gh api \
+#          -H "Accept: application/vnd.github+json" \
+#          -H "X-GitHub-Api-Version: 2022-11-28" \
+#          repos/${{ github.repository }}/actions/secrets
+#
+#      - uses: actions/checkout@v4
+#
+#      - name: Store Slack infos 4
+#        shell: bash
+#        run: |
+#          {
+#            echo 'REPORT_TEXT<<EOF'
+#            KV='${{ toJSON(secrets) }}' python utils/process.py
+#            echo EOF
+#          } >> "$GITHUB_ENV"
+#
+#      - name: Send SSH informations to Slack channel 2
+#        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001
+#        with:
+#          # Slack channel id, channel name, or user id to post message.
+#          # See also: https://api.slack.com/methods/chat.postMessage#channels
+#          channel-id: '#transformers-ci-feedback-tests'
+#          # For posting a rich message using Block Kit
+#          payload: |
+#            {
+#              "blocks": [
+#                {
+#                  "type": "section",
+#                  "text": {
+#                    "type": "mrkdwn",
+#                    "text": "${{ env.REPORT_TEXT }}"
+#                  }
+#                }
+#              ]
+#            }
+#        env:
+#          SLACK_BOT_TOKEN: ${{ secrets.SLACK_CIFEEDBACK_BOT_TOKEN }}
