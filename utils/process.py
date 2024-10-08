@@ -6,6 +6,7 @@ from copy import deepcopy
 
 o = os.environ["KV"]
 o = json.loads(o)
+# o = {}
 
 from collections import Counter
 
@@ -109,7 +110,7 @@ new_data_full = {author: deepcopy(data) for author in new_data}
 for author, _data in new_data_full.items():
     for model, model_result in _data.items():
         for device, failed_tests in model_result.items():
-            failed_test = [x for x in failed_tests if x["author"] == author or x["merged_by"] == author]
+            failed_tests = [x for x in failed_tests if x["author"] == author or x["merged_by"] == author]
             model_result[device] = failed_tests
 
 output = {}
@@ -119,5 +120,5 @@ for author, item in new_data_full.items():
         author = f"<@{o[key]}>"
     output[author] = item
 
-print(json.dumps(output, indent=4).replace('"', '\\"').replace("\n", "\\n"))
+print(json.dumps(output, indent=4))
 
