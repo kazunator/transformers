@@ -732,7 +732,7 @@ class LlamaIntFlashAttention(LlamaAttention):
         attn_output = _attention_int8.apply(
             query_states_int8,
             key_states_int8,
-            value_states_int8,
+            value_states.to(torch.float16),
             q_scale,
             k_scale,
             causal,
@@ -751,7 +751,7 @@ class LlamaIntFlashAttention(LlamaAttention):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             # Update cache with quantized keys and values
             past_key_value.update(
-                key_states_int8, value_states_int8, self.layer_idx, cache_kwargs
+                key_states_int8, value_states.to(torch.float16), self.layer_idx, cache_kwargs
             )
     
         return attn_output, None, past_key_value
