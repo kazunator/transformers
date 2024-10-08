@@ -77,17 +77,6 @@ data = json.loads(data)
 # with open("new_model_failures_with_bad_commit.json") as fp:
 #     data = json.load(fp)
 
-# for model, model_result in data.items():
-#     for device, failed_tests in model_result.items():
-#         for failed_test in failed_tests:
-#             author = failed_test["author"].replace("-", "_").upper() + "_SLACK_ID"
-#             if author in o:
-#                 author = o[author]
-#             failed_test["author"] = f"<@{author}>"
-
-# group `author` or `merged_by`
-
-
 new_data = {}
 
 for model, model_result in data.items():
@@ -105,7 +94,6 @@ for model, model_result in data.items():
 for author in new_data:
     new_data[author] = dict(new_data[author])
 
-
 new_data_full = {author: deepcopy(data) for author in new_data}
 for author, _data in new_data_full.items():
     for model, model_result in _data.items():
@@ -114,7 +102,13 @@ for author, _data in new_data_full.items():
             model_result[device] = failed_tests
 
 output = {}
-for author, item in new_data_full.items():
+# for author, item in new_data_full.items():
+#     key = author.replace("-", "_").upper() + "_SLACK_ID"
+#     if key in o:
+#         author = f"<@{o[key]}>"
+#     output[author] = item
+
+for author, item in new_data.items():
     key = author.replace("-", "_").upper() + "_SLACK_ID"
     if key in o:
         author = f"<@{o[key]}>"
