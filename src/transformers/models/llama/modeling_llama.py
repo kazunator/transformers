@@ -665,26 +665,26 @@ class LlamaIntFlashAttention(LlamaAttention):
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
-
+    
         if output_attentions:
             logger.warning_once(
                 "`output_attentions=True` is not supported with `LlamaIntFlashAttention`. "
                 "Setting `output_attentions=False`."
             )
             output_attentions = False
-
+    
         bsz, q_len, _ = hidden_states.size()
-
+    
         # Compute q, k, v
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
-
+    
         # Reshape to [batch_size, num_heads, seq_length, head_dim]
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
-
+    
         # Apply rotary embeddings
         if position_embeddings is None:
             logger.warning_once(
@@ -696,67 +696,65 @@ class LlamaIntFlashAttention(LlamaAttention):
         else:
             cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
-
+    
         # Update key and value states with past key values (if any)
         if past_key_value is not None:
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-
-        # Expand key/value heads if necessary
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
-
-        # Quantize query_states and key_states to int8
+    
+    
+        # Quantize query, key, and value states to int8
         q_scale = query_states.abs().amax(dim=-1, keepdim=True) / 127
         k_scale = key_states.abs().amax(dim=-1, keepdim=True) / 127
-
+        v_scale = value_states.abs().amax(dim=-1, keepdim=True) / 127
+    
         # Avoid division by zero
         q_scale = torch.clamp(q_scale, min=1e-6)
         k_scale = torch.clamp(k_scale, min=1e-6)
-
+        v_scale = torch.clamp(v_scale, min=1e-6)
+    
         query_states_int8 = (query_states / q_scale).round().to(torch.int8)
         key_states_int8 = (key_states / k_scale).round().to(torch.int8)
-
+        value_states_int8 = (value_states / v_scale).round().to(torch.int8)
+    
         # Squeeze the last dimension of scales
         q_scale = q_scale.squeeze(-1).to(torch.float16)
         k_scale = k_scale.squeeze(-1).to(torch.float16)
-
+        v_scale = v_scale.squeeze(-1).to(torch.float16)
+    
         # Prepare sm_scale (softmax scaling factor)
         sm_scale = 1.0 / math.sqrt(self.head_dim)
-
+    
         # Determine if causal
         causal = self.is_causal
-
+    
         # Call the int8 attention function
         attn_output = _attention_int8.apply(
             query_states_int8,
             key_states_int8,
-            value_states.to(torch.float16),
+            value_states_int8,
             q_scale,
             k_scale,
+            v_scale,
             causal,
             sm_scale
         )
-
+    
         # Reshape attn_output to [batch_size, seq_length, hidden_size]
         attn_output = attn_output.transpose(1, 2).contiguous()
         attn_output = attn_output.view(bsz, q_len, -1)
-
+    
         # Final projection
         attn_output = self.o_proj(attn_output)
-        v_scale = value_states.abs().amax(dim=-1, keepdim=True) / 127
-        v_scale = torch.clamp(v_scale, min=1e-6)
-        value_states_int8 = (value_states / v_scale).round().to(torch.int8)
-        v_scale = v_scale.squeeze(-1).to(torch.float16)
-
+    
         # Update the KV cache with quantized keys and values
-        if use_cache and past_key_value is not None:
+        if use_cache:
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
-            # Update cache with quantized keys and scales
+            # Update cache with quantized keys and values
             past_key_value.update(
                 key_states_int8, value_states_int8, self.layer_idx, cache_kwargs
             )
-
+    
         return attn_output, None, past_key_value
 
 class LlamaFlashAttention2(LlamaAttention):
