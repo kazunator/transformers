@@ -569,23 +569,23 @@ class LlamaAttention(nn.Module):
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         bsz, q_len, _ = hidden_states.size()
 
-       if self.config.pretraining_tp > 1:
+        if self.config.pretraining_tp > 1:
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
             query_slices = self.q_proj.weight.split(
                 (self.num_heads * self.head_dim) // self.config.pretraining_tp, dim=0
             )
             key_slices = self.k_proj.weight.split(key_value_slicing, dim=0)
             value_slices = self.v_proj.weight.split(key_value_slicing, dim=0)
-    
+
             # Convert hidden_states to float16 once
             hidden_states_fp16 = hidden_states.half()
-    
+
             query_states = [F.linear(hidden_states_fp16, query_slices[i].half()) for i in range(self.config.pretraining_tp)]
             query_states = torch.cat(query_states, dim=-1)
-    
+
             key_states = [F.linear(hidden_states_fp16, key_slices[i].half()) for i in range(self.config.pretraining_tp)]
             key_states = torch.cat(key_states, dim=-1)
-    
+
             value_states = [F.linear(hidden_states_fp16, value_slices[i].half()) for i in range(self.config.pretraining_tp)]
             value_states = torch.cat(value_states, dim=-1)
         else:
@@ -593,7 +593,7 @@ class LlamaAttention(nn.Module):
             self.q_proj.weight = nn.Parameter(self.q_proj.weight.half())
             self.k_proj.weight = nn.Parameter(self.k_proj.weight.half())
             self.v_proj.weight = nn.Parameter(self.v_proj.weight.half())
-    
+
             # Convert biases to float16 if they exist
             if self.q_proj.bias is not None:
                 self.q_proj.bias = nn.Parameter(self.q_proj.bias.half())
@@ -601,7 +601,7 @@ class LlamaAttention(nn.Module):
                 self.k_proj.bias = nn.Parameter(self.k_proj.bias.half())
             if self.v_proj.bias is not None:
                 self.v_proj.bias = nn.Parameter(self.v_proj.bias.half())
-    
+
             # Perform computations in float16
             query_states = self.q_proj(hidden_states.half())
             key_states = self.k_proj(hidden_states.half())
@@ -648,7 +648,6 @@ class LlamaAttention(nn.Module):
             )
 
         attn_output = attn_output.transpose(1, 2).contiguous()
-
         attn_output = attn_output.reshape(bsz, q_len, -1)
 
         if self.config.pretraining_tp > 1:
