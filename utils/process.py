@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from copy import deepcopy
+
 
 o = os.environ["KV"]
 o = json.loads(o)
@@ -84,6 +86,7 @@ data = json.loads(data)
 
 # group `author` or `merged_by`
 
+
 new_data = {}
 
 for model, model_result in data.items():
@@ -91,21 +94,26 @@ for model, model_result in data.items():
         for failed_test in failed_tests:
             author = failed_test["author"]
 
-            # # TODO: we want to make it an internal member instead of checking it's in secrets
-            # if not author.replace("-", "_").upper() + "_SLACK_ID" in o:
+            # if not author in team_members:
             #     author = failed_test["merged_by"]
 
             if author not in new_data:
                 new_data[author] = Counter()
-
-            model_name = failed_test["test"].split("/")[2]
-            new_data[author].update([model_name])
+            new_data[author].update([model])
 
 for author in new_data:
     new_data[author] = dict(new_data[author])
 
+
+new_data_full = {author: deepcopy(data) for author in new_data}
+for author, _data in new_data_full.items():
+    for model, model_result in _data.items():
+        for device, failed_tests in model_result.items():
+            failed_test = [x for x in failed_tests if x["author"] == author or x["merged_by"] == author]
+            model_result[device] = failed_tests
+
 output = {}
-for author, item in new_data.items():
+for author, item in new_data_full.items():
     key = author.replace("-", "_").upper() + "_SLACK_ID"
     if key in o:
         author = f"<@{o[key]}>"
