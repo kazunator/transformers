@@ -23,7 +23,7 @@ jobs:
       - name: Check team members 2
         shell: bash
         run: |
-          echo '$(python -c "import json; with open('team_members.json') as fp: data = json.load(fp); fp.close(); print(str(data)[:10])")'
+          echo '$(python -c "import json; with open('team_members.json') as fp: data = json.load(fp); print(str(data)[:10])")'
 #
 #      - name: Check
 #        shell: bash
