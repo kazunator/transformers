@@ -1467,6 +1467,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
         self.model = LlamaModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self._supports_int_flash_attn = True
 
         # Initialize weights and apply final processing
         self.post_init()
