@@ -120,5 +120,5 @@ for author, item in new_data_full.items():
         author = f"<@{o[key]}>"
     output[author] = item
 
-print(json.dumps(output, indent=4))
+print(json.dumps(output, indent=4).replace('"', '\\"').replace("\n", "\\n"))
 
