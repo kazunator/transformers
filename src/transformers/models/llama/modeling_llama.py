@@ -754,7 +754,7 @@ class LlamaIntFlashAttention(LlamaAttention):
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             # Update cache with quantized keys and scales
             past_key_value.update(
-                key_states_int8, k_scale, value_states_int8, v_scale, self.layer_idx, cache_kwargs
+                key_states_int8, value_states_int8, self.layer_idx, cache_kwargs
             )
 
         return attn_output, None, past_key_value
