@@ -4,7 +4,6 @@ import re
 
 o = os.environ["KV"]
 o = json.loads(o)
-# o = {}
 
 from collections import Counter
 
@@ -102,12 +101,15 @@ for model, model_result in data.items():
             model_name = failed_test["test"].split("/")[2]
             new_data[author].update([model_name])
 
-            # if author in o:
-            #     author = o[author]
-            # failed_test["author"] = f"<@{author}>"
-
 for author in new_data:
     new_data[author] = dict(new_data[author])
 
-print(json.dumps(new_data, indent=4).replace('"', '\\"').replace("\n", "\\n"))
-# print(json.dumps(data, indent=4).replace('"', '\\"').replace("\n", "\\n"))
+output = {}
+for author, item in new_data.items():
+    key = author.replace("-", "_").upper() + "_SLACK_ID"
+    if key in o:
+        author = f"<@{o[key]}>"
+    output[author] = item
+
+print(json.dumps(output, indent=4).replace('"', '\\"').replace("\n", "\\n"))
+
