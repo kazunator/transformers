@@ -728,7 +728,7 @@ class LlamaIntFlashAttention(LlamaAttention):
         causal = self.is_causal
 
         # Call the int8 attention function
-        attn_output = attention_int8(
+        attn_output = _attention_int8.apply(
             query_states_int8,
             key_states_int8,
             value_states.to(torch.float16),
